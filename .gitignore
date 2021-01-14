@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PyCharm internals
+.idea/
+
+# Backup versions of files
+*.orig
+
+# Intermediate work area
+/sandbox/
