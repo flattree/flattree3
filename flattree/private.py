@@ -88,3 +88,4 @@ def gen_crown(xtree, settings, preface=None):
 
 def build_crown(xtree, settings, preface=None):
     return dict(gen_crown(xtree=xtree, settings=settings, preface=preface))
+
