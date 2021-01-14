@@ -1,3 +1,4 @@
+from typing import List
 from collections.abc import Hashable
 from .settings import get_symbols
 
@@ -50,7 +51,7 @@ def gen_leaf_tuples(xtree, preface=None):
         yield preface, xtree
 
 
-def encode_step(step: Key, settings):
+def encode_step(step: Key, settings) -> str:
     sep, lbr, rbr, lquo, rquo = get_symbols(settings)
     if isinstance(step, ListKey):
         return f"{lbr}{step.key}{rbr}"
@@ -89,3 +90,42 @@ def gen_crown(xtree, settings, preface=None):
 def build_crown(xtree, settings, preface=None):
     return dict(gen_crown(xtree=xtree, settings=settings, preface=preface))
 
+
+def split_leafkey(leafkey, settings) -> List[str]:
+    if not isinstance(leafkey, str):  # non-strings equivalent to None
+        return []
+    sep, lbr, _, lquo, rquo = get_symbols(settings)
+    result = []
+    buffer = ''
+    quoted = False
+    for c in leafkey:
+        flush, append = False, True
+        quoted = (quoted or c == lquo) and not (quoted and c == rquo)
+        if not quoted:
+            if c == sep:
+                flush, append = True, False
+            elif c == lbr:
+                flush, append = True, True
+        if flush:
+            result.append(buffer)
+            buffer = ''
+        if append:
+            buffer += c
+    result.append(buffer)
+    return result
+
+
+def decode_key_str(key_str, settings):
+    if key_str.isdigit():
+        return DictKey(int(key_str))
+    sep, lbr, rbr, lquo, rquo = get_symbols(settings)
+    if len(key_str) > 2 and key_str[0] == lbr and key_str[-1] == rbr:
+        return ListKey(key_str[1:-1])
+    key = key_str
+    if len(key_str) > 2 and key_str[0] == lquo and key_str[-1] == rquo:
+        key = key_str[1:-1].replace(lquo * 2, rquo)
+        if lquo != rquo:
+            key = key.replace(lquo * 2, lquo)
+    elif key_str in ('None', 'False', 'True'):
+        key = eval(key_str)
+    return DictKey(key)
