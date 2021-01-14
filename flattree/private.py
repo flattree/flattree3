@@ -1,4 +1,5 @@
 from typing import List
+from collections import deque, UserDict
 from collections.abc import Hashable
 from .settings import get_symbols
 
@@ -36,6 +37,47 @@ class DictKey(Key):
 
     def __repr__(self):
         return f"DictKey({repr(self.key)})"
+
+
+class Branch(UserDict):
+    _allowed_key_type = None
+
+    def render(self):
+        return self.data
+
+    @classmethod
+    def key_type_matches(cls, key):
+        return (
+                cls._allowed_key_type is None
+                or isinstance(key, cls._allowed_key_type) and key.is_valid()
+        )
+
+
+class DictBranch(Branch):
+    _allowed_key_type = DictKey
+
+    def render(self):
+        result = {}
+        for key, value in self.data.items():
+            try:
+                result[key] = value.render()
+            except AttributeError:
+                result[key] = value
+        return result
+
+
+class ListBranch(Branch):
+    _allowed_key_type = ListKey
+
+    def render(self):
+        result = []
+        for key in sorted(self.data.keys()):
+            value = self.data[key]
+            try:
+                result.append(value.render())
+            except AttributeError:
+                result.append(value)
+        return result
 
 
 def gen_leaf_tuples(xtree, preface=None):
@@ -129,3 +171,46 @@ def decode_key_str(key_str, settings):
     elif key_str in ('None', 'False', 'True'):
         key = eval(key_str)
     return DictKey(key)
+
+
+def _new_branch(key=None):
+    if isinstance(key, ListKey):
+        return ListBranch()
+    return DictBranch()
+
+
+def _from_leafstream(stream):
+    istream = iter(stream)
+    root = {}
+    shadow = []
+    try:
+        # Set up root or return early
+        leafpath, value = next(istream)
+        if not leafpath:
+            return value, list(istream)
+        root = _new_branch(leafpath[0])
+        # Build xtree and shadow
+        while True:
+            try:
+                if not leafpath:
+                    raise KeyError
+                path = deque(leafpath)
+                branch = root
+                while path:
+                    step = path.popleft()
+                    if not branch.key_type_matches(step):
+                        raise KeyError
+                    if path:  # step is a branch
+                        if step.key not in branch:
+                            branch[step.key] = _new_branch(path[0])
+                        branch = branch[step.key]
+                    else:
+                        if step.key in branch:
+                            raise KeyError
+                        branch[step.key] = value
+            except KeyError:
+                shadow.append((leafpath, value))
+            leafpath, value = next(istream)
+    except StopIteration:
+        xtree = root.render() if isinstance(root, Branch) else root
+        return xtree, shadow
