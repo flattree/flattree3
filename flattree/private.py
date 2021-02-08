@@ -1,4 +1,5 @@
 from typing import List
+from itertools import cycle
 from collections import deque, UserDict
 from collections.abc import Hashable
 from .settings import get_symbols
@@ -134,7 +135,7 @@ def build_crown(xtree, settings, preface=None):
 
 
 def split_leafkey(leafkey, settings) -> List[str]:
-    if not isinstance(leafkey, str):  # non-strings equivalent to None
+    if not isinstance(leafkey, str):  # non-strings treated as None
         return []
     sep, lbr, _, lquo, rquo = get_symbols(settings)
     result = []
@@ -171,6 +172,13 @@ def decode_key_str(key_str, settings):
     elif key_str in ('None', 'False', 'True'):
         key = eval(key_str)
     return DictKey(key)
+
+
+def _gen_leafstream(crown, settings):
+    for leafkey, value in crown.items():
+        key_parts = split_leafkey(leafkey, settings)
+        leafpath = list(map(decode_key_str, key_parts, cycle((settings,))))
+        yield leafpath, value
 
 
 def _new_branch(key=None):
