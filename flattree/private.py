@@ -148,7 +148,8 @@ def split_leafkey(leafkey, settings) -> List[str]:
             if c == sep:
                 flush, append = True, False
             elif c == lbr:
-                flush, append = True, True
+                # Don't append buffer in front of the leading left bracket
+                flush, append = bool(result), True
         if flush:
             result.append(buffer)
             buffer = ''
