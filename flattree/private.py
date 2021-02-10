@@ -1,7 +1,6 @@
 from typing import List
 from collections import deque, UserDict
 from collections.abc import Hashable
-from .settings import get_default_settings, get_symbols
 
 
 class Tag:
@@ -70,19 +69,6 @@ class ListBranch(Branch):
             except AttributeError:
                 result.append(value)
         return result
-
-
-def gen_leaves(xtree, preface=None):
-    if preface is None:
-        preface = []
-    if isinstance(xtree, dict) and xtree:
-        for key, value in xtree.items():
-            yield from gen_leaves(xtree[key], preface + [DictTag(key)])
-    elif isinstance(xtree, list) and xtree:
-        for i, el in enumerate(xtree):
-            yield from gen_leaves(el, preface + [ListTag(i)])
-    else:
-        yield Leaf(preface, xtree)
 
 
 def encode_tag(tag: Tag, symbols) -> str:
@@ -170,22 +156,7 @@ class Leaf:
         return f"Leaf({repr(self.route)}, {repr(self.value)})"
 
 
-class FlatTreeBase:
-    def __init__(self, xtree, settings=None):
-        local_settings = settings or get_default_settings()
-        self.settings = {}
-        self.settings.update(local_settings)
-        self._stn_symbols = get_symbols(self.settings)
-        self.crown = list(gen_leaves(xtree))
-        self.crown_idx = dict(self._gen_crown_idx())
-        self.shadow = []
-
-    def _gen_crown_idx(self):
-        for idx, leaf in enumerate(self.crown):
-            yield get_path(leaf.route, self._stn_symbols), idx
-
-
-def _from_leaves(leaves):
+def build_tree(leaves):
     leafstream = iter(leaves)
     root = {}
     crown = []
